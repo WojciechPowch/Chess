@@ -393,11 +393,18 @@ class AI {
     extraRools(name, params) {
         switch (name) {
             case 'bishop' :
-                var rool = (a, b) => {
-                    return a == b ;
+            /**
+             * rool ma być tablicą
+             * pierwszy element będzie funkją ruchu do przodu
+             * drugi element bedzie funkcją ruchu do tyłu
+             */
+                var rool = (num, lit) => {
+                    var point = {
+                        num: num += 1,
+                        lit: this.increminateLitPosition(lit, 1)
+                    };
                 };
                 return rool;
-            
             default:
                 return undefined;
         }
@@ -433,12 +440,91 @@ class AI {
             }
             
             if (item.lit) {
-                virtualPosition[i].lit[0] = increminateLitPosition(currentPosition, item);
-                virtualPosition[i].lit[1] = decreminateLitPosition(currentPosition, item);
+                virtualPosition[i].lit[0] = this.increminateLitPosition(currentPosition, item);
+                virtualPosition[i].lit[1] = this.decreminateLitPosition(currentPosition, item);
             }
         });
         
-        
+        virtualPosition = this.correctPosition(virtualPosition, currentPosition, figure);
+
+    }
+
+    correctPosition(positions, currentPostion, figure) {
+
+        var checkedPoints = [];
+        var checkIterator = 0;
+
+        positions.forEach(function(item, i) {
+            var pos = [];
+
+            if (item.num) {
+                if (item.num.length == 2) {
+                    pos[0] = {num: item.num[0]};
+                    pos[1] = {num: item.num[1]};
+                } else if (item.num.length == 1) {
+                    pos[0] = {num: item.num[0]};
+                }
+            }
+
+            if (item.lit) {
+                if (item.lit.length == 2) {
+                    if (pos[0].num) {
+                        pos[0].lit = item.lit[0];
+                        pos[1].lit = item.lit[1];
+                    } else {
+                        pos[0] = {lit: item.lit[0]};
+                        pos[1] = {lit: item.lit[1]};
+                    }
+                } else if (item.lit.length == 1) {
+                    if (pos[0].num) {
+                        pos[0].lit = item.lit;
+                    } else {
+                        pos[0] = {lit: item.lit[0]};
+                    }
+                }
+            }
+
+            pos.forEach(function(item, i) {
+                var endPoint = false;
+
+                if (item.num && item.lit) {
+                    var speialRools = this.extraRools(figure.getName());
+
+                    if (!speialRools) {
+                        endPoint = this.checkDestinyPoint(item.num, item.lit);
+                    } else {
+                        //kolejna funkcja
+                        //iteracyjnaw
+                        var point = currentPostion;
+
+                        point = this.speialRools(currentPostion.num, currentPostion.lit);
+
+                        //ruch tylko w jedną stronę dodatnią na desce;
+                        //wyodrębnienie ruchów increminacyjnych i dekrementacyjnych
+                        if (this.checkIsMooveForward(currentPostion, item)) {
+                            while(point.num <= item.num && point.lit.charCodeAt(0) <= item.lit.charCodeAt(0)) {
+
+                                if (!this.checkIsLegalPoint(point.num, point.lit)) {
+                                    break;
+                                }
+
+                                if (this.checkDestinyPoint(point.num, point.lit)) {
+                                    checkedPoints[checkIterator] = point;
+                                    checkIterator++;
+                                } else {
+                                    break;
+                                }
+
+                                point = this.speialRools(currentPostion.num, currentPostion.lit);
+
+                            }
+                        } else {
+
+                        }
+                    }
+                }
+            });
+        });
     }
     
     increminateLitPosition(a, b) {
@@ -451,6 +537,14 @@ class AI {
             return 'h';
         }
     }
+
+    increminateLitPosition(lit, number) {
+        var current = lit.charCodeAt(0);
+
+        current += number;
+
+        return String.fromCharCode(current);
+    }
     
     decreminateLitPosition(a, b) {
         var calculate = a.lit.charCodeAt(0) - b.lit.charCodeAt(0);
@@ -460,6 +554,33 @@ class AI {
         } else {
             return 'a';
         }
+    }
+
+    checkDestinyPoint(num, lit) {
+        var point = this._board.board[num][lit];
+        var params = {
+            canMoove = false,
+            fight = false
+        };
+
+        if (point) {
+            if (!point.getColor() == this.color) {
+                params.canMoove = true;
+                params.fight = true;
+            }
+        } else {
+            params.canMoove = true;
+        }
+
+        return params;
+    }
+
+    checkIsLegalPoint(num, lit) {
+        return num <= 8 && num >= 1 && lit.charCodeAt(0) >= 97 && lit.charCodeAt(0) <= 104;
+    }
+
+    checkIsMooveForward(currentPosition, pos) {
+        return currentPosition.num < pos.num || currentPosition.lit.charCodeAt(0) < currentPosition.lit.charCodeAt(0);
     }
 }
 
