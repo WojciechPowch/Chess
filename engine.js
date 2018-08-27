@@ -398,12 +398,89 @@ class AI {
              * pierwszy element będzie funkją ruchu do przodu
              * drugi element bedzie funkcją ruchu do tyłu
              */
-                var rool = (num, lit) => {
+                var rool = [];
+                rool[0] = (num, lit) => {
                     var point = {
                         num: num += 1,
                         lit: this.increminateLitPosition(lit, 1)
                     };
+                    return point;
                 };
+
+                rool[1] = (num, lit) => {
+                    var point = {
+                        num: num - 1,
+                        lit: this.decreminateLitPosition(lit, 1)
+                    };
+                    return point;
+                };
+
+                return rool;
+            case 'rook':
+                var rool = [];
+
+                rool[0] = (num, lit, forward) => {
+
+                    var point = undefined;
+
+                    if (forward) {
+                        point = {
+                            num: num += 1,
+                            lit: lit
+                        };
+                    } else {
+                        point = {
+                            num: num -= 1,
+                            lit: lit
+                        };
+                    }
+
+                    return point;
+                };
+
+                rool[1] = (num, lit, forward) => {
+                    var point = undefined;
+
+                    if (forward) {
+                        point = {
+                            num: num,
+                            lit: this.increminateLitPosition(lit, 1)
+                        };
+                    } else {
+                        point = {
+                            num: num,
+                            lit: this.decreminateLitPosition(lit, 1)
+                        };
+                    }
+
+                    return point;
+                };
+
+                return rool;
+
+            case 'knight' :
+                var rool = [];
+
+                /**
+                 * knight posiada 8 możliwości ruchów
+                 */
+
+                rool[0] = (num, lit, forward) => {
+                    var point = undefined;
+
+                    if (forward) {
+                        point = {
+                            num: num += 1,
+                            lit: this.increminateLitPosition(lit, 2)
+                        }
+                    } else {
+                        point = {
+                            num: num += 1,
+                            lit: this.decreminateLitPosition(lit, 2)
+                        }
+                    }
+                };
+
                 return rool;
             default:
                 return undefined;
@@ -411,10 +488,14 @@ class AI {
     }
     
     getPossiblePositions(figure) {
-        var range = this.getRange(figure.getName());
+        var this_ = this;
+        var range = this.getRange(figure.getName());//zasięg dla każdej figury
         var currentPosition = figure.getPosition();
         var virtualPosition = [];
         
+        /**
+         * W tej petli korygujemy pozycje według range i rozmiaru tablicy
+         */
         range.forEach(function(item, i) {
             
             virtualPosition[i] = {};
@@ -440,8 +521,8 @@ class AI {
             }
             
             if (item.lit) {
-                virtualPosition[i].lit[0] = this.increminateLitPosition(currentPosition, item);
-                virtualPosition[i].lit[1] = this.decreminateLitPosition(currentPosition, item);
+                virtualPosition[i].lit[0] = this_.increminateLitPosition(currentPosition, item);
+                virtualPosition[i].lit[1] = this_.decreminateLitPosition(currentPosition, item);
             }
         });
         
@@ -449,10 +530,11 @@ class AI {
 
     }
 
+    //segregator 
     correctPosition(positions, currentPostion, figure) {
+        var this_ = this;
 
         var checkedPoints = [];
-        var checkIterator = 0;
 
         positions.forEach(function(item, i) {
             var pos = [];
@@ -485,46 +567,84 @@ class AI {
             }
 
             pos.forEach(function(item, i) {
-                var endPoint = false;
+
+                var specialRools = this_.extraRools(figure.getName());
 
                 if (item.num && item.lit) {
-                    var speialRools = this.extraRools(figure.getName());
 
-                    if (!speialRools) {
-                        endPoint = this.checkDestinyPoint(item.num, item.lit);
-                    } else {
-                        //kolejna funkcja
-                        //iteracyjnaw
-                        var point = currentPostion;
+                    checkedPoints = this_.castPoint(item, specialRool, checkedPoints, currentPostion);
 
-                        point = this.speialRools(currentPostion.num, currentPostion.lit);
+                } else if (item.num) {
+                    item.lit = currentPostion.lit;
 
-                        //ruch tylko w jedną stronę dodatnią na desce;
-                        //wyodrębnienie ruchów increminacyjnych i dekrementacyjnych
-                        if (this.checkIsMooveForward(currentPostion, item)) {
-                            while(point.num <= item.num && point.lit.charCodeAt(0) <= item.lit.charCodeAt(0)) {
+                    checkedPoints = this_.castPoint(item, specialRool, checkedPoints, currentPostion);
+                } else if (item.lit) {
+                    item.num = currentPostion.num;
 
-                                if (!this.checkIsLegalPoint(point.num, point.lit)) {
-                                    break;
-                                }
-
-                                if (this.checkDestinyPoint(point.num, point.lit)) {
-                                    checkedPoints[checkIterator] = point;
-                                    checkIterator++;
-                                } else {
-                                    break;
-                                }
-
-                                point = this.speialRools(currentPostion.num, currentPostion.lit);
-
-                            }
-                        } else {
-
-                        }
-                    }
+                    checkedPoints = this_.castPoint(item, specialRool, checkedPoints, currentPostion);
                 }
             });
         });
+
+        return checkedPoints;
+    }
+
+    //główna funkcja precyzujące dostępne pozycje dla ruchu
+    castPoint(item, specialRools, checkedPoints, currentPosition) {
+
+        if (!specialRools) {
+            endPoint = this.checkDestinyPoint(item.num, item.lit);
+            //każdy obiekt musi zawierać specialRools "extraRools"
+        } else {
+            //kolejna funkcja
+            //iteracyjna
+            var point = currentPostion;
+            if (this.checkIsMooveForward(currentPostion, item)) {
+                point = specialRools[0](currentPostion.num, currentPostion.lit);
+
+                //ruch tylko w jedną stronę dodatnią na desce;
+                //wyodrębnienie ruchów increminacyjnych i dekrementacyjnych
+            
+                while(point.num <= item.num && point.lit.charCodeAt(0) <= item.lit.charCodeAt(0)) {
+
+                    if (!this.checkIsLegalPoint(point.num, point.lit)) {
+                        break;
+                    }
+
+                    if (this.checkDestinyPoint(point.num, point.lit)) {
+                        checkedPoints.push(point);
+                    } else {
+                        break;
+                    }
+
+                    point = specialRools[0](currentPostion.num, currentPostion.lit);
+
+                }
+            } else {
+                point = specialRools[1](currentPostion.num, currentPostion.lit);
+
+                //ruch tylko w jedną stronę dodatnią na desce;
+                //wyodrębnienie ruchów increminacyjnych i dekrementacyjnych
+            
+                while(point.num >= item.num && point.lit.charCodeAt(0) >= item.lit.charCodeAt(0)) {
+
+                    if (!this.checkIsLegalPoint(point.num, point.lit)) {
+                        break;
+                    }
+
+                    if (this.checkDestinyPoint(point.num, point.lit)) {
+                        checkedPoints.push(point);
+                    } else {
+                        break;
+                    }
+
+                    point = specialRools[1](currentPostion.num, currentPostion.lit);
+
+                }
+            }
+        }
+
+        return checkedPoints;
     }
     
     increminateLitPosition(a, b) {
@@ -545,6 +665,14 @@ class AI {
 
         return String.fromCharCode(current);
     }
+
+    decreminateLitPosition(lit, number) {
+        var current = lit.charCodeAt(0);
+
+        current -= number;
+
+        return String.fromCharCode(current);
+    }
     
     decreminateLitPosition(a, b) {
         var calculate = a.lit.charCodeAt(0) - b.lit.charCodeAt(0);
@@ -556,6 +684,9 @@ class AI {
         }
     }
 
+    /**
+     * Sprwadzamy punkt docelowy
+     */
     checkDestinyPoint(num, lit) {
         var point = this._board.board[num][lit];
         var params = {
