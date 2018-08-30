@@ -271,9 +271,27 @@ class AI {
             for (var j = 97; j <= 104; j++) {
                 var key = String.fromCharCode(j);
                 
-                
+                var cell = this._board.board[i][key];
+
+                if (cell) {
+                    if (cell.getColor() == this.color) {
+                        possible[ this.generatePossibleMooveKey(cell) ] = this.getPossiblePositions(cell);
+                    }
+                }
             }
         }
+    }
+
+    generatePossibleMooveKey(cell) {
+        var key = "";
+        var position = cell.getPosition();
+
+        key += cell.getName();
+        key += position.lit.toString();
+        key += position.num.toString();
+
+        return key;
+
     }
     
     firstMoove() {
@@ -392,6 +410,66 @@ class AI {
     
     extraRools(name, params) {
         switch (name) {
+            case 'quin':
+                var rool = [];
+
+                rool[0] = (num, lit, forward) => {
+                    
+                }
+
+                return undefined;
+            case 'pawn':
+
+                var rool = [];
+
+                rool[0] = (lit, num, forward) => {
+                    var point = undefined;
+                    if (forward) {
+                        point = {
+                            lit: this.increminateLitPosition(lit, 1),
+                            num: num += 1
+                        }
+                    }
+                    return point;
+                };
+
+                rool[1] = (lit, num, forward) => {
+                    var point = undefined;
+                    if (forward) {
+                        point = {
+                            lit: this.decreminateLitPosition(lit, 1),
+                            num: num += 1
+                        }
+                    }
+                    return point;
+                };
+
+                rool[2] = (lit, num, forward) => {
+                    var point = undefined;
+                    if (forward) {
+                        point = {
+                            lit: lit,
+                            num: num += 1
+                        }
+                    }
+                    return point;
+                };
+
+                rool[3] = (lit, num, forward) => {
+                    var point = undefined;
+                    if (forward) {
+                        if (this.checkIsFirstPawnMoove(num, lit)) {
+                            point = {
+                                lit: lit,
+                                num: num += 2
+                            }
+                        }
+                    }
+
+                    return point;
+                };
+
+                return rool;
             case 'bishop' :
             /**
              * rool ma być tablicą
@@ -399,19 +477,19 @@ class AI {
              * drugi element bedzie funkcją ruchu do tyłu
              */
                 var rool = [];
-                rool[0] = (num, lit) => {
-                    var point = {
-                        num: num += 1,
-                        lit: this.increminateLitPosition(lit, 1)
-                    };
-                    return point;
-                };
-
-                rool[1] = (num, lit) => {
-                    var point = {
-                        num: num - 1,
-                        lit: this.decreminateLitPosition(lit, 1)
-                    };
+                rool[0] = (num, lit, forward) => {
+                    var point = undefined;
+                    if (forward) {
+                        point = {
+                            num: num += 1,
+                            lit: this.increminateLitPosition(lit, 1)
+                        };
+                    } else {
+                        point = {
+                            num: num - 1,
+                            lit: this.decreminateLitPosition(lit, 1)
+                        };
+                    }
                     return point;
                 };
 
@@ -479,12 +557,73 @@ class AI {
                             lit: this.decreminateLitPosition(lit, 2)
                         }
                     }
+
+                    return point;
+                };
+
+                rool[1] = (num, lit, forward) => {
+                    var point = undefined;
+
+                    if (forward) {
+                        point = {
+                            num: num -= 1,
+                            lit: this.increminateLitPosition(lit, 2)
+                        }
+                    } else {
+                        point = {
+                            num: num -= 1,
+                            lit: this.decreminateLitPosition(lit, 2)
+                        }
+                    }
+
+                    return point;
+                };
+
+                rool[2] = (num, lit, forward) => {
+                    var point = undefined;
+
+                    if (forward) {
+                        point = {
+                            num: num += 2,
+                            lit: this.increminateLitPosition(lit, 1)
+                        }
+                    } else {
+                        point = {
+                            num: num += 2,
+                            lit: this.decreminateLitPosition(lit, 1)
+                        }
+                    }
+
+                    return point;
+                };
+
+                rool[2] = (num, lit, forward) => {
+                    var point = undefined;
+
+                    if (forward) {
+                        point = {
+                            num: num -= 2,
+                            lit: this.increminateLitPosition(lit, 1)
+                        }
+                    } else {
+                        point = {
+                            num: num -= 2,
+                            lit: this.decreminateLitPosition(lit, 1)
+                        }
+                    }
+
+                    return point;
                 };
 
                 return rool;
             default:
                 return undefined;
         }
+    }
+
+    checkIsFirstPawnMoove(lit, num) {
+        var numPosition = 8 - num;
+        return numPosition == 1 || numPosition == 6;
     }
     
     getPossiblePositions(figure) {
@@ -527,6 +666,8 @@ class AI {
         });
         
         virtualPosition = this.correctPosition(virtualPosition, currentPosition, figure);
+
+        return virtualPosition;
 
     }
 
@@ -591,6 +732,7 @@ class AI {
 
     //główna funkcja precyzujące dostępne pozycje dla ruchu
     castPoint(item, specialRools, checkedPoints, currentPosition) {
+        var this_ = this;
 
         if (!specialRools) {
             endPoint = this.checkDestinyPoint(item.num, item.lit);
@@ -598,53 +740,54 @@ class AI {
         } else {
             //kolejna funkcja
             //iteracyjna
-            var point = currentPostion;
-            if (this.checkIsMooveForward(currentPostion, item)) {
-                point = specialRools[0](currentPostion.num, currentPostion.lit);
+            var point = undefined;
 
-                //ruch tylko w jedną stronę dodatnią na desce;
-                //wyodrębnienie ruchów increminacyjnych i dekrementacyjnych
-            
-                while(point.num <= item.num && point.lit.charCodeAt(0) <= item.lit.charCodeAt(0)) {
+            var forwarded = this_.checkIsMooveForward(currentPostion, item);
 
-                    if (!this.checkIsLegalPoint(point.num, point.lit)) {
-                        break;
-                    }
-
-                    if (this.checkDestinyPoint(point.num, point.lit)) {
-                        checkedPoints.push(point);
-                    } else {
-                        break;
-                    }
-
-                    point = specialRools[0](currentPostion.num, currentPostion.lit);
-
-                }
+            if (forwarded) {
+                checkedPoints = this.iterateRools(specialRools, checkedPoints, forwarded, currentPosition, item);
             } else {
-                point = specialRools[1](currentPostion.num, currentPostion.lit);
-
-                //ruch tylko w jedną stronę dodatnią na desce;
-                //wyodrębnienie ruchów increminacyjnych i dekrementacyjnych
-            
-                while(point.num >= item.num && point.lit.charCodeAt(0) >= item.lit.charCodeAt(0)) {
-
-                    if (!this.checkIsLegalPoint(point.num, point.lit)) {
-                        break;
-                    }
-
-                    if (this.checkDestinyPoint(point.num, point.lit)) {
-                        checkedPoints.push(point);
-                    } else {
-                        break;
-                    }
-
-                    point = specialRools[1](currentPostion.num, currentPostion.lit);
-
-                }
+                checkedPoints = this.iterateRools(specialRools, checkedPoints, forwarded, currentPosition, item);
             }
         }
 
         return checkedPoints;
+    }
+
+    iterateRools(specialRools, checkedPoints, forwarded, currentPosition, item) {
+
+        var this_ = this;
+
+        var point = undefined;
+
+        specialRools.forEach(function(rool, i){
+            point = currentPosition;
+
+            point = rool(currentPosition.num, currentPosition.lit, forwarded);
+
+            //ruch tylko w jedną stronę dodatnią na desce;
+            //wyodrębnienie ruchów increminacyjnych i dekrementacyjnych
+    
+            while(point.num <= item.num && point.lit.charCodeAt(0) <= item.lit.charCodeAt(0)) {
+                if (!point) {
+                    break;
+                }
+
+                if (!this_.checkIsLegalPoint(point.num, point.lit)) {
+                    break;
+                }
+
+                if (this_.checkDestinyPoint(point.num, point.lit)) {
+                    checkedPoints.push(point);
+                } else {
+                    break;
+                }
+
+                point = rool(currentPosition.num, currentPosition.lit, forwarded);
+
+            }
+        });
+
     }
     
     increminateLitPosition(a, b) {
@@ -690,8 +833,8 @@ class AI {
     checkDestinyPoint(num, lit) {
         var point = this._board.board[num][lit];
         var params = {
-            canMoove = false,
-            fight = false
+            canMoove: false,
+            fight: false
         };
 
         if (point) {
