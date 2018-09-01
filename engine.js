@@ -265,7 +265,7 @@ class AI {
             return this.firstMoove();
         }
         
-        var possible = [];
+        var mypossible = [];
         
         for (var i = 1; i <= 8; i++) {
             for (var j = 97; j <= 104; j++) {
@@ -275,7 +275,7 @@ class AI {
 
                 if (cell) {
                     if (cell.getColor() == this.color) {
-                        possible[ this.generatePossibleMooveKey(cell) ] = this.getPossiblePositions(cell);
+                        mypossible[ this.generatePossibleMooveKey(cell) ] = this.getPossiblePositions(cell);
                     }
                 }
             }
@@ -414,10 +414,58 @@ class AI {
                 var rool = [];
 
                 rool[0] = (num, lit, forward) => {
-                    
+                    var point = undefined;
+                    if (forward) {
+                        point = {
+                            num: num += 1,
+                            lit: this.increminateLitPosition(lit, 1)
+                        };
+                    } else {
+                        point = {
+                            num: num - 1,
+                            lit: this.decreminateLitPosition(lit, 1)
+                        };
+                    }
+                    return point;
                 }
 
-                return undefined;
+                rool[1] = (num, lit, forward) => {
+                    var point = undefined;
+
+                    if (forward) {
+                        point = {
+                            num: num += 1,
+                            lit: lit
+                        };
+                    } else {
+                        point = {
+                            num: num -= 1,
+                            lit: lit
+                        };
+                    }
+
+                    return point;
+                };
+
+                rool[2] = (num, lit, forward) => {
+                    var point = undefined;
+
+                    if (forward) {
+                        point = {
+                            num: num,
+                            lit: this.increminateLitPosition(lit, 1)
+                        };
+                    } else {
+                        point = {
+                            num: num,
+                            lit: this.decreminateLitPosition(lit, 1)
+                        };
+                    }
+
+                    return point;
+                };
+
+                return rool;
             case 'pawn':
 
                 var rool = [];
