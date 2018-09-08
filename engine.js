@@ -256,17 +256,71 @@ class AI {
         this.color = color;
         this._board;
         this.virtualBoard;
+        this._params = {};
+        this.mypossible = undefined;
+        this.oponentpossible = undefined;
+
+        this.Brain = class Brain {
+            constructor(board, figure, oponentPossible) {
+                this.board_ = board;
+                this.figure = figure;
+                this.enemy = oponentPossible;
+            }
+
+            analizePosition(lit, num) {
+                var key = undefined;
+                var enemyPossibleFight = this.enemy.possible_fight[ key ];
+            }
+        }
     }
     
     getDecision(board, params) {
         this._board = board;
+        this._params.fightIterator = 0;
+        this._params.virtualColor = undefined;
         
         if (params.firstMoove && this.color == 'white') {
             return this.firstMoove();
         }
-        
-        var mypossible = [];
-        
+
+        this.asyncFunction(this.iterateBoard(false, this.mypossible)).then(
+            this.asyncFunction(this.iterateBoard(false, this.oponentpossible)));
+
+
+        for (var i = 1; i <= 8; i++) {
+            for (var j = 97; j <= 104; j++) {
+                var key = String.fromCharCode(j);
+
+                var cell = this._board[i][key];
+
+                if (cell) {
+                    if (cell.getColor() == this.color) {
+                        var keyInCollection = this.generatePossibleMooveKey(cell);
+
+                        var possibleMooves = this.mypossible.possible[ keyInCollection ];
+
+                        var possibleMoovesFight = this.mypossible.possible_fight[ keyInCollection ];
+
+                        possibleMooves.forEach(function(item, i) {
+                            
+                        });
+                    }
+                }
+            }
+        }
+
+    }
+
+    asyncFunction(variable ,work) {
+        return new Promise(function(resolve, reject) {
+            setTimeout(function() {
+                resolve(work)
+            }, 100)
+        });
+    }
+
+    iterateBoard(virtualColor, playerObject) {
+        var possible = {};
         for (var i = 1; i <= 8; i++) {
             for (var j = 97; j <= 104; j++) {
                 var key = String.fromCharCode(j);
@@ -275,11 +329,19 @@ class AI {
 
                 if (cell) {
                     if (cell.getColor() == this.color) {
-                        mypossible[ this.generatePossibleMooveKey(cell) ] = this.getPossiblePositions(cell);
+                        this._params.fightIterator = 0;
+                        var key = this.generatePossibleMooveKey(cell);
+
+                        var positions = this.getPossiblePositions(cell, virtualColor);
+
+                        possible.possible[ key ] = positions.checkedPoints;
+                        possible.possible_fight[ key ] = positions.checkedPointsForFight;
                     }
                 }
             }
         }
+
+        playerObject = possible;
     }
 
     generatePossibleMooveKey(cell) {
@@ -674,11 +736,12 @@ class AI {
         return numPosition == 1 || numPosition == 6;
     }
     
-    getPossiblePositions(figure) {
+    getPossiblePositions(figure, virtualColor) {
         var this_ = this;
         var range = this.getRange(figure.getName());//zasięg dla każdej figury
         var currentPosition = figure.getPosition();
         var virtualPosition = [];
+        var virtualPositions= {};
         
         /**
          * W tej petli korygujemy pozycje według range i rozmiaru tablicy
@@ -713,17 +776,20 @@ class AI {
             }
         });
         
-        virtualPosition = this.correctPosition(virtualPosition, currentPosition, figure);
+        virtualPositions = this.correctPosition(virtualPosition, currentPosition, figure, virtualColor);
 
-        return virtualPosition;
+        return virtualPositions;
 
     }
 
     //segregator 
-    correctPosition(positions, currentPostion, figure) {
+    correctPosition(positions, currentPostion, figure, virtualColor) {
         var this_ = this;
 
-        var checkedPoints = [];
+        var pocheckedPoints = {
+            checkedPoints: [],
+            checkedPointsForFight: []
+        }
 
         positions.forEach(function(item, i) {
             var pos = [];
@@ -761,16 +827,16 @@ class AI {
 
                 if (item.num && item.lit) {
 
-                    checkedPoints = this_.castPoint(item, specialRool, checkedPoints, currentPostion);
+                    checkedPoints = this_.castPoint(item, specialRool, checkedPoints, currentPostion, figure, virtualColor);
 
                 } else if (item.num) {
                     item.lit = currentPostion.lit;
 
-                    checkedPoints = this_.castPoint(item, specialRool, checkedPoints, currentPostion);
+                    checkedPoints = this_.castPoint(item, specialRool, checkedPoints, currentPostion, figure, virtualColor);
                 } else if (item.lit) {
                     item.num = currentPostion.num;
 
-                    checkedPoints = this_.castPoint(item, specialRool, checkedPoints, currentPostion);
+                    checkedPoints = this_.castPoint(item, specialRool, checkedPoints, currentPostion, figure, virtualColor);
                 }
             });
         });
@@ -779,11 +845,11 @@ class AI {
     }
 
     //główna funkcja precyzujące dostępne pozycje dla ruchu
-    castPoint(item, specialRools, checkedPoints, currentPosition) {
+    castPoint(item, specialRools, checkedPoints, currentPosition, figure, virtualColor) {
         var this_ = this;
 
         if (!specialRools) {
-            endPoint = this.checkDestinyPoint(item.num, item.lit);
+            var endPoint = this.checkDestinyPoint(item.num, item.lit);
             //każdy obiekt musi zawierać specialRools "extraRools"
         } else {
             //kolejna funkcja
@@ -793,16 +859,16 @@ class AI {
             var forwarded = this_.checkIsMooveForward(currentPostion, item);
 
             if (forwarded) {
-                checkedPoints = this.iterateRools(specialRools, checkedPoints, forwarded, currentPosition, item);
+                checkedPoints = this.iterateRools(specialRools, checkedPoints, forwarded, currentPosition, item, figure, virtualColor);
             } else {
-                checkedPoints = this.iterateRools(specialRools, checkedPoints, forwarded, currentPosition, item);
+                checkedPoints = this.iterateRools(specialRools, checkedPoints, forwarded, currentPosition, item, figure, virtualColor);
             }
         }
 
         return checkedPoints;
     }
 
-    iterateRools(specialRools, checkedPoints, forwarded, currentPosition, item) {
+    iterateRools(specialRools, checkedPoints, forwarded, currentPosition, item, figure, virtualColor) {
 
         var this_ = this;
 
@@ -825,8 +891,14 @@ class AI {
                     break;
                 }
 
-                if (this_.checkDestinyPoint(point.num, point.lit)) {
-                    checkedPoints.push(point);
+                var destiny = this_.checkDestinyPoint(point.num, point.lit, virtualColor);
+
+                if (destiny.canMoove && destiny.fight) { // należy wyodrębnić ruchy do walki
+                    checkedPoints.checkedPointsForFight[figure.toString() + this_._params.fightIterator.toString()] = point;
+                    this_._params.fightIterator++;
+                    break;
+                } else if (destiny.canMoove) {
+                    checkedPoints.checkedPoints.push(point);
                 } else {
                     break;
                 }
@@ -835,6 +907,8 @@ class AI {
 
             }
         });
+
+        return checkedPoints;
 
     }
     
@@ -878,7 +952,7 @@ class AI {
     /**
      * Sprwadzamy punkt docelowy
      */
-    checkDestinyPoint(num, lit) {
+    checkDestinyPoint(num, lit, virtualColor) {
         var point = this._board.board[num][lit];
         var params = {
             canMoove: false,
@@ -886,7 +960,10 @@ class AI {
         };
 
         if (point) {
-            if (!point.getColor() == this.color) {
+            if (!point.getColor() == this.color && !virtualColor) {
+                params.canMoove = true;
+                params.fight = true;
+            } else if (point.getColor() == this.color && virtualColor) {
                 params.canMoove = true;
                 params.fight = true;
             }
@@ -904,6 +981,7 @@ class AI {
     checkIsMooveForward(currentPosition, pos) {
         return currentPosition.num < pos.num || currentPosition.lit.charCodeAt(0) < currentPosition.lit.charCodeAt(0);
     }
+
 }
 
 window.onload = function() {
